@@ -1,73 +1,160 @@
 import { View, KeyboardAvoidingView, ScrollView, Text, StyleSheet, TextInput } from 'react-native'
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+const Chance = require('chance')
+const chancey = new Chance()
 
 import MultiSwitch from '../components/UI/MultiSwitch'
+import MyButton from '../components/UI/MyButton'
 
 function AddNew() {
 	const [incrRedu, setIncrRedu] = useState(0)
 	const [freqDurCoun, setFreqDurCoun] = useState(0)
 	const [title, setTitle] = useState('')
-	const [days, setDays] = useState(0)
-	const [hours, setHours] = useState(0)
-	const [minutes, setMinutes] = useState(0)
+	const [days, setDays] = useState('0')
+	const [hours, setHours] = useState('0')
+	const [minutes, setMinutes] = useState('0')
 
 	function hdlTitleChange(newTitle: string) {
 		setTitle(newTitle)
 	}
 
+	function hdlTimerChange(text: string, timerPart: string) {
+		const textAsNum = parseInt(text.replace(/[^0-9]/g, ''))
+		if (textAsNum) {
+			switch (timerPart) {
+				case 'days':
+					setDays(textAsNum.toString())
+					break
+				case 'hours':
+					setHours(textAsNum.toString())
+					break
+				case 'minutes':
+					setMinutes(textAsNum.toString())
+					break
+			}
+		}
+	}
+
+	// Calculate full timer and allocate to days, hours, and minutes
+	function calcTimer() {
+		let daysAsNum = parseInt(days)
+		let hoursAsNum = parseInt(hours)
+		let minutesAsNum = parseInt(minutes)
+
+		const totalMinutes = daysAsNum * 24 * 60 + hoursAsNum * 60 + minutesAsNum
+
+		const daysFromTotal = Math.floor(totalMinutes / (24 * 60))
+		const hoursFromTotal = Math.floor((totalMinutes - daysFromTotal * 24 * 60) / 60)
+		const minutesFromTotal = totalMinutes - daysFromTotal * 24 * 60 - hoursFromTotal * 60
+
+		setDays(daysFromTotal.toString())
+		setHours(hoursFromTotal.toString())
+		setMinutes(minutesFromTotal.toString())
+	}
+
+	async function hdlPress() {
+		calcTimer()
+		
+		try {
+			const items = await AsyncStorage.getItem('items')
+			if (items) {
+				const itemsAsObj = JSON.parse(items)
+				const newItems = [
+					...itemsAsObj,
+					{
+						itemId: chancey.hash(),
+						title,
+						value,
+						type,
+						created: Date.now()
+					}
+				]
+				await AsyncStorage.setItem('items', JSON.stringify(newItems))
+			}
+		} catch (e) {
+			console.log(e)
+		}
+	}
+
 	return (
-			<View style={styles.main} >
-				<Text style={styles.text}>I want to</Text>
-				<MultiSwitch
-					tabs={['Increase', 'Reduce']}
-					currentIndex={incrRedu}
-					onChange={(index: number) => {
-						setIncrRedu(index)
-					}}
+		<View style={styles.main}>
+			<Text style={styles.text}>I want to</Text>
+			<MultiSwitch
+				tabs={['Increase', 'Reduce']}
+				currentIndex={incrRedu}
+				onChange={(index: number) => {
+					setIncrRedu(index)
+				}}
+			/>
+			<MultiSwitch
+				tabs={['Frequency', 'Duration', 'Count']}
+				currentIndex={freqDurCoun}
+				onChange={(index: number) => {
+					setFreqDurCoun(index)
+				}}
+			/>
+			<View style={styles.titleContainer}>
+				<Text style={styles.text}>Of:</Text>
+				<TextInput
+					style={styles.titleInput}
+					value={title}
+					onChangeText={hdlTitleChange}
+					placeholder={freqDurCoun < 2 ? 'Timer Title' : 'Counter Title'}
 				/>
-				<MultiSwitch
-					tabs={['Frequency', 'Duration', 'Count']}
-					currentIndex={freqDurCoun}
-					onChange={(index: number) => {
-						setFreqDurCoun(index)
-					}}
-				/>
-				<View style={styles.titleContainer}>
-					<Text style={styles.text}>Of:</Text>
-					<TextInput
-						style={styles.titleInput}
-						value={title}
-						onChangeText={hdlTitleChange}
-						placeholder={freqDurCoun < 2 ? 'Timer Title' : 'Counter Title'}
-					/>
-				</View>
-				<View style={styles.horizontalRule} />
-				<View style={styles.timerContainer}>
-					<Text style={styles.text}>{freqDurCoun < 2 ? 'Initial Timer' : 'Initial Count'}</Text>
-					<View style={styles.timer}>
-						<View style={styles.timerColumns}>
-							<TextInput style={styles.timerInput} placeholder="0" keyboardType="numeric" selectTextOnFocus />
-							<Text style={styles.timerLabel} numberOfLines={1} ellipsizeMode="tail">
-								Days
-							</Text>
-						</View>
-						<View style={styles.columnGap} />
-						<View style={styles.timerColumns}>
-							<TextInput style={styles.timerInput} placeholder="0" keyboardType="numeric" selectTextOnFocus />
-							<Text style={styles.timerLabel} numberOfLines={1} ellipsizeMode="tail">
-								Hours
-							</Text>
-						</View>
-						<View style={styles.columnGap} />
-						<View style={styles.timerColumns}>
-							<TextInput style={styles.timerInput} placeholder="0" keyboardType="numeric" selectTextOnFocus />
-							<Text style={styles.timerLabel} numberOfLines={1} ellipsizeMode="tail">
-								Minutes
-							</Text>
-						</View>
+			</View>
+			<View style={styles.horizontalRule} />
+			<View style={styles.timerContainer}>
+				<Text style={styles.text}>{freqDurCoun < 2 ? 'Initial Timer' : 'Initial Count'}</Text>
+				<View style={styles.timer}>
+					<View style={styles.timerColumns}>
+						<TextInput
+							value={days}
+							style={styles.timerInput}
+							placeholder="0"
+							keyboardType="numeric"
+							selectTextOnFocus
+							onChangeText={(text) => hdlTimerChange(text, 'days')}
+							onBlur={calcTimer}
+						/>
+						<Text style={styles.timerLabel} numberOfLines={1}>
+							Days
+						</Text>
+					</View>
+					<View style={styles.columnGap} />
+					<View style={styles.timerColumns}>
+						<TextInput
+							value={hours}
+							style={styles.timerInput}
+							placeholder="0"
+							keyboardType="numeric"
+							selectTextOnFocus
+							onChangeText={(text) => hdlTimerChange(text, 'hours')}
+							onBlur={calcTimer}
+						/>
+						<Text style={styles.timerLabel} numberOfLines={1}>
+							Hours
+						</Text>
+					</View>
+					<View style={styles.columnGap} />
+					<View style={styles.timerColumns}>
+						<TextInput
+							value={minutes}
+							style={styles.timerInput}
+							placeholder="0"
+							keyboardType="numeric"
+							selectTextOnFocus
+							onChangeText={(text) => hdlTimerChange(text, 'minutes')}
+							onBlur={calcTimer}
+						/>
+						<Text style={styles.timerLabel} numberOfLines={1}>
+							Minutes
+						</Text>
 					</View>
 				</View>
 			</View>
+			<MyButton title="Add" onPress={hdlPress} />
+		</View>
 	)
 }
 
