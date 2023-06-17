@@ -7,13 +7,14 @@ const chancey = new Chance()
 import MultiSwitch from '../components/UI/MultiSwitch'
 import MyButton from '../components/UI/MyButton'
 
-function AddNew() {
+function AddNew({ navigation }: any) {
 	const [incrRedu, setIncrRedu] = useState(0)
 	const [freqDurCoun, setFreqDurCoun] = useState(0)
 	const [title, setTitle] = useState('')
 	const [days, setDays] = useState('0')
 	const [hours, setHours] = useState('0')
 	const [minutes, setMinutes] = useState('0')
+	const [counter, setCounter] = useState('0')
 
 	function hdlTitleChange(newTitle: string) {
 		setTitle(newTitle)
@@ -21,7 +22,7 @@ function AddNew() {
 
 	function hdlTimerChange(text: string, timerPart: string) {
 		const textAsNum = parseInt(text.replace(/[^0-9]/g, ''))
-		if (textAsNum) {
+		if (textAsNum === 0 || textAsNum) {
 			switch (timerPart) {
 				case 'days':
 					setDays(textAsNum.toString())
@@ -33,6 +34,13 @@ function AddNew() {
 					setMinutes(textAsNum.toString())
 					break
 			}
+		}
+	}
+
+	function hdlCounterChange(text: string) {
+		const textAsNum = parseInt(text.replace(/[^0-9]/g, ''))
+		if (textAsNum === 0 || textAsNum) {
+			setCounter(textAsNum.toString())
 		}
 	}
 
@@ -51,29 +59,107 @@ function AddNew() {
 		setDays(daysFromTotal.toString())
 		setHours(hoursFromTotal.toString())
 		setMinutes(minutesFromTotal.toString())
+
+		return totalMinutes / 60
 	}
 
-	async function hdlPress() {
-		calcTimer()
-		
-		try {
-			const items = await AsyncStorage.getItem('items')
-			if (items) {
-				const itemsAsObj = JSON.parse(items)
+	async function hdlPressAdd() {
+		const timerSeconds = calcTimer()
+
+		if (timerSeconds > 0 && title.length > 0) {
+			try {
+				let items = await AsyncStorage.getItem('items')
+				const itemsAsObj = JSON.parse(items ? items : '[]')
 				const newItems = [
 					...itemsAsObj,
 					{
 						itemId: chancey.hash(),
 						title,
-						value,
-						type,
+						value: freqDurCoun < 2 ? timerSeconds : parseInt(counter),
+						incrRedu,
+						freqDurCoun,
 						created: Date.now()
 					}
 				]
 				await AsyncStorage.setItem('items', JSON.stringify(newItems))
+				navigation.navigate('Home')
+			} catch (err) {
+				console.error(err)
 			}
-		} catch (e) {
-			console.log(e)
+		} else {
+			console.log('Timer must be greater than zero and title must be at least one character.')
+		}
+	}
+
+	function timerCounter() {
+		if (freqDurCoun < 2) {
+			return (
+				<View style={styles.timerContainer}>
+					<Text style={styles.text}>Initial Timer</Text>
+					<View style={styles.timer}>
+						<View style={styles.timerColumns}>
+							<TextInput
+								value={days}
+								style={styles.timerInput}
+								placeholder="0"
+								keyboardType="numeric"
+								selectTextOnFocus
+								onChangeText={(text) => hdlTimerChange(text, 'days')}
+								onBlur={calcTimer}
+							/>
+							<Text style={styles.timerLabel} numberOfLines={1}>
+								Days
+							</Text>
+						</View>
+						<View style={styles.columnGap} />
+						<View style={styles.timerColumns}>
+							<TextInput
+								value={hours}
+								style={styles.timerInput}
+								placeholder="0"
+								keyboardType="numeric"
+								selectTextOnFocus
+								onChangeText={(text) => hdlTimerChange(text, 'hours')}
+								onBlur={calcTimer}
+							/>
+							<Text style={styles.timerLabel} numberOfLines={1}>
+								Hours
+							</Text>
+						</View>
+						<View style={styles.columnGap} />
+						<View style={styles.timerColumns}>
+							<TextInput
+								value={minutes}
+								style={styles.timerInput}
+								placeholder="0"
+								keyboardType="numeric"
+								selectTextOnFocus
+								onChangeText={(text) => hdlTimerChange(text, 'minutes')}
+								onBlur={calcTimer}
+							/>
+							<Text style={styles.timerLabel} numberOfLines={1}>
+								Minutes
+							</Text>
+						</View>
+					</View>
+				</View>
+			)
+		} else {
+			return (
+				<View style={styles.timerContainer}>
+					<Text style={styles.text}>Initial Count:</Text>
+					<View style={styles.timer}>
+						<TextInput
+							value={counter}
+							style={styles.timerInput}
+							placeholder="0"
+							keyboardType="numeric"
+							selectTextOnFocus
+							onChangeText={(text) => hdlCounterChange(text)}
+						/>
+					</View>
+				</View>
+			)
 		}
 	}
 
@@ -104,56 +190,8 @@ function AddNew() {
 				/>
 			</View>
 			<View style={styles.horizontalRule} />
-			<View style={styles.timerContainer}>
-				<Text style={styles.text}>{freqDurCoun < 2 ? 'Initial Timer' : 'Initial Count'}</Text>
-				<View style={styles.timer}>
-					<View style={styles.timerColumns}>
-						<TextInput
-							value={days}
-							style={styles.timerInput}
-							placeholder="0"
-							keyboardType="numeric"
-							selectTextOnFocus
-							onChangeText={(text) => hdlTimerChange(text, 'days')}
-							onBlur={calcTimer}
-						/>
-						<Text style={styles.timerLabel} numberOfLines={1}>
-							Days
-						</Text>
-					</View>
-					<View style={styles.columnGap} />
-					<View style={styles.timerColumns}>
-						<TextInput
-							value={hours}
-							style={styles.timerInput}
-							placeholder="0"
-							keyboardType="numeric"
-							selectTextOnFocus
-							onChangeText={(text) => hdlTimerChange(text, 'hours')}
-							onBlur={calcTimer}
-						/>
-						<Text style={styles.timerLabel} numberOfLines={1}>
-							Hours
-						</Text>
-					</View>
-					<View style={styles.columnGap} />
-					<View style={styles.timerColumns}>
-						<TextInput
-							value={minutes}
-							style={styles.timerInput}
-							placeholder="0"
-							keyboardType="numeric"
-							selectTextOnFocus
-							onChangeText={(text) => hdlTimerChange(text, 'minutes')}
-							onBlur={calcTimer}
-						/>
-						<Text style={styles.timerLabel} numberOfLines={1}>
-							Minutes
-						</Text>
-					</View>
-				</View>
-			</View>
-			<MyButton title="Add" onPress={hdlPress} />
+			{timerCounter()}
+			<MyButton title="Add" onPress={hdlPressAdd} />
 		</View>
 	)
 }
